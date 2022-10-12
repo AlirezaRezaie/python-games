@@ -8,7 +8,7 @@ PIXEL_SIZE = 5
 ### FUNCTIONS
 def get_neighbours(row,col,grid,shape):
     """
-        returns the sum of the neghbours in a grid given the cell position
+        returns the sum of the neighbours in a grid given the cell position
     """
     sum = 0
     for i in range(-1,2):
