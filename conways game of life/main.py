@@ -18,7 +18,7 @@ def Init_State(w,h):
         creates a random grid
     """
 
-    state = numpy.random.choice([0,1],(w ,h))
+    state = numpy.random.choice([0,0,0,0,0,0,0,0,0],(w ,h))
     shape = numpy.shape(state)
     return state,shape
 
