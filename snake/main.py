@@ -1,145 +1,110 @@
-from typing import Literal
 import pygame
-import random
+from snake import Snake
+from food import Food
+from consts import *
+import numpy as np
 
 pygame.init()
-width,height = 800,800
+
 window = pygame.display.set_mode((width, height))
 clock = pygame.time.Clock()
 
-PIXEL_SIZE = 20
+foods = []
+for _ in range(20):
+    foods.append(Food(window))
+snakes = []
+for _ in range(50):
+    snakes.append(Snake(window,foods))
 
-def gen_rand_color():
-    return (random.randrange(255) , random.randrange(255) , random.randrange(255))	
-
-class axis:
-    def __init__(self,x_axis,y_axis):
-        self.x = x_axis
-        self.y = y_axis
-
-class Snake:
-    def __init__(self):
-        self.vel = 20
-        self.size = PIXEL_SIZE
-        self.direction : Literal['up', 'down', 'right', 'left'] = 'right'
-        self.cells = [(0,20),(20,20)]
-        self.colors = [(0,255,255),(255,0,0)]
-        self.head = axis(*self.cells[-1])
-
-
-    def draw(self):
-        # append new head to cells if not exists
-        if (self.head.x,self.head.y) not in self.cells: 
-            self.cells.append((self.head.x,self.head.y))
-        # apply direction value to the corresponding axis
-        match self.direction:
-            case "up":
-                self.head.y += -self.vel
-
-            case "down":
-                self.head.y += self.vel
-                
-            case "right":
-                self.head.x += self.vel
-                
-            case "left":
-                self.head.x += -self.vel
-        
-        # check and manage field barrier
-
-        # colid right
-        if self.head.x > width - PIXEL_SIZE: self.head.x = 0
-        # colid left
-        elif self.head.x < 0: self.head.x = width - PIXEL_SIZE
-        # colid up
-        elif self.head.y < 0: self.head.y = width - PIXEL_SIZE
-        # colid down
-        elif self.head.y > height - PIXEL_SIZE: self.head.y = 0
-
-
-        if not collid and not len(self.cells) == 2:
-            self.cells.remove(self.cells[0])
-        else:
-            print("snake grow")
-            self.colors.append(gen_rand_color())
-
-        self.colors.reverse()
-        for cell,color in zip(self.cells,self.colors):
-            rect = pygame.Rect(cell[0],cell[1],self.size,self.size)
-            pygame.draw.rect(window, color, rect)
-        self.colors.reverse()
-
-class Food:
-    x = 80
-    y = 80
-    transparency = 150
-    inc = 5
-    def draw(self,x ,y):
-        self.x = x
-        self.y = y
-        if self.transparency >= 255:
-           self.inc *= -1 
-        elif self.transparency < 150:
-           self.inc *= -1
-        self.transparency += self.inc
-        rect = pygame.Rect(self.x,self.y,PIXEL_SIZE,PIXEL_SIZE)
-        pygame.draw.rect(window,(0,self.transparency,0),rect)
-        
-    def respawn(self):
-        x,y = self.gen_random_pos()
-        self.draw(x,y)
-
-    def gen_random_pos(self):
-        posx = round(random.randrange(0,width-PIXEL_SIZE)/PIXEL_SIZE)* PIXEL_SIZE 
-        posy = round(random.randrange(0,height-PIXEL_SIZE)/PIXEL_SIZE)* PIXEL_SIZE
-        return posx,posy
-
-def collided(objs:list[tuple[()]]) -> bool:
-    for obj in objs:
-        if snake.head.x == obj[0] and snake.head.y == obj[1]:
-            return True
-
-
-snake = Snake()
-food = Food()
-
-score = 0
 run = True
+gen = 0
+highest_score = -1
+best_snake = None
+best_survival = 0
 while run:
-    collid = False
-    clock.tick(30)
-    
+    clock.tick(120)
+    gen +=1
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP and not snake.direction == "down":
-                snake.direction = "up"
-            elif event.key == pygame.K_DOWN and not snake.direction == "up":
-                snake.direction = "down"
-            elif event.key == pygame.K_RIGHT and not snake.direction == "left":
-                snake.direction = "right"
-            elif event.key == pygame.K_LEFT and not snake.direction == "right":
-                snake.direction = "left"
+            
+        #elif event.type == pygame.KEYDOWN:
+        #    if event.key == pygame.K_UP and not snake.direction == [0,1,0,0]:
+        #        snake.direction = [1,0,0,0]
+        #    elif event.key == pygame.K_DOWN and not snake.direction == [1,0,0,0]:
+        #        snake.direction = [0,1,0,0]
+        #    elif event.key == pygame.K_RIGHT and not snake.direction == [0,0,0,1]:
+        #        snake.direction = [0,0,1,0]
+        #    elif event.key == pygame.K_LEFT and not snake.direction == [0,0,1,0]:
+        #        snake.direction = [0,0,0,1] 
 
-    # check if food eaten
-    if collided([(food.x,food.y)]):
-        food.respawn() 
-        score += 1
-        collid = True
-    
-    # check if self bitten
-    if collided(snake.cells) and not len(snake.cells) == 2:
-        run = False
+    for snake in snakes:
+        pred = snake.think()
+        if not np.argmax(pred) == 4:
+            arr= [0,0,0,0]
+            arr[np.argmax(pred)] = 1
+            if arr == [1,0,0,0] and not snake.direction == [0,1,0,0]:
+                snake.direction = [1,0,0,0]
+            elif arr == [0,1,0,0] and not snake.direction == [1,0,0,0]:
+                snake.direction = [0,1,0,0]
+            elif arr == [0,0,1,0] and not snake.direction == [0,0,0,1]:
+                snake.direction = [0,0,1,0]
+            elif arr == [0,0,0,1] and not snake.direction == [0,0,1,0]:
+                snake.direction = [0,0,0,1] 
 
-    window.fill((100,100,100))
-    food.draw(food.x,food.y) 
-    snake.draw()
+        # check if self bitten
+        if snake.collided(snake.cells) and not len(snake.cells) == 2:
+            snakes.remove(snake)
+
+        # check and manage field barrier
+        if snake.head.x > width - PIXEL_SIZE or snake.head.x < 0 or snake.head.y < 0 or snake.head.y > height - PIXEL_SIZE:
+            snakes.remove(snake)
+
+        snake.draw()
+        snake.collid = False
+
+    for food in foods:
+        for snake in snakes:
+            # check if food eaten
+            if snake.collided([(food.x,food.y)]) and food in foods:
+                foods.remove(food)
+                print("food removed")
+                snake.score += 1
+                snake.collid = True
+
+    # Draw all remaining food items
+    for food in foods:
+        food.draw()
+        
     pygame.display.flip()
+    window.fill((100,100,100))
+
+    for snake in snakes:
+        if snake.score > highest_score:
+            print("new snake stronger")
+            highest_score = snake.score
+            best_snake = snake
+
+                     
+    if gen == 50:
+        
+        gen = 0
+        print("last snake reached")
+
+                
+        foods = []
+        for _ in range(10):
+            foods.append(Food(window))
+        snakes = []    
+        for _ in range(50):
+            brain = best_snake.brain
+            brain.w1 += np.random.normal(scale=0.2, size=best_snake.brain.w1.shape)
+            brain.w2 += np.random.normal(scale=0.3, size=best_snake.brain.w2.shape)
+            brain.w3 += np.random.normal(scale=0.7, size=best_snake.brain.w3.shape)
+            snakes.append(Snake(window,foods,brain=brain))
+        snakes.append(best_snake)
     
 
 pygame.quit()
-
-print("your score:",score)
 
 exit()
